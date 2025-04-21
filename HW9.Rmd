@@ -1,0 +1,218 @@
+---
+title: "HW9"
+author: "Andrea Nwaokolo"
+date: "2025-04-19"
+output: html_document
+---
+
+This the my [GitHuB](https://github.com/Andnwa/SDS315-HW9)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(mosaic )
+library(boot)
+library(MatchIt)
+library(moderndive)
+library(parameters)
+solder <- read.csv('solder.csv')
+grocery <- read.csv('groceries.csv')
+redlining <- read.csv('redlining.csv')
+```
+
+
+## Problem 1: Manufacturing flaws in circuit boards
+
+<br>
+
+Part A:
+
+```{r, echo=FALSE, warning=FALSE}
+
+ggplot(solder, aes(x = Opening, y = skips, fill = Opening)) + geom_boxplot() + labs(title = "Number of Skips by Solder Gun Opening Size", x = "Opening Size", y = "Number of Skips") + theme_minimal() + theme(legend.position = "none")
+
+```
+
+
+This boxplot shows the distribution of skips across different solder gun opening sizes. The variation in medians and spread suggests that the opening size is related to the number of skips.
+
+<br>
+
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+ggplot(solder, aes(x = Solder, y = skips, fill = Solder)) + geom_boxplot() + labs(title = "Number of Skips by Solder Thickness", x = "Solder Thickness", y = "Number of Skips") + theme_minimal() + theme(legend.position = "none")
+
+```
+
+This boxplot displays how solder thickness (Thick vs. Thin) relates to the number of skips. A noticeable difference in distributions provides evidence of a relationship between solder thickness and skips.
+
+<br>
+
+
+Part B:
+
+```{r, echo=FALSE, results='hide', warning=FALSE}
+
+model = lm(skips ~ Opening + Solder, data = solder)
+get_regression_table(model)
+
+
+```
+
+
+When the opening size is Large and the solder is Thick (the baseline group), the predicted number of skips is -1.092. Compared to a Large opening, using a Medium opening is associated with an average increase of 2.04 skips, holding solder type constant. Compared to a Large opening, using a Small opening is associated with an average increase of 9.95 skips, holding solder type constant. Compared to using Thick solder, using Thin solder is associated with an average increase of 5.25 skips, holding opening size constant.
+
+<br>
+Part D:
+
+I recommend using a Large opening and Thick solder. This combination is associated with the lowest average number of skips. 
+
+
+
+<br>
+<br>
+
+## Problem 2: Grocery store prices
+
+Part A:
+
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+avg_price_per_store <- grocery %>%
+  group_by(Store) %>%
+  summarise(avg_price = mean(Price, na.rm = TRUE)) %>%
+  arrange(desc(avg_price))
+
+ggplot(avg_price_per_store, aes(x = reorder(Store, avg_price), y = avg_price)) + geom_col(fill = "#c42422") + coord_flip() + labs(title = "Average Product Prices Across Stores", x = "Store", y = "Average Price") + theme_minimal()
+
+```
+
+
+This graph shows the variation in average product prices across different stores.
+
+<br>
+Part B:
+
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+product_availability <- grocery %>%
+  distinct(Store, Product) %>%  
+  group_by(Product) %>%
+  summarise(num_stores = n()) %>%
+  arrange(desc(num_stores))
+
+ggplot(product_availability, aes(x = reorder(Product, num_stores), y = num_stores)) + geom_col(fill = "darkgreen") +
+coord_flip() + labs(title = "Availability of Products Across Stores", x = "Product", y = "Number of Stores") + theme_minimal()
+
+
+
+```
+
+
+This graph shows how widely each product is distributed across different stores. Products at the top are available in the most stores
+
+<br>
+Part C:
+
+```{r, echo=FALSE, results='hide', warning=FALSE}
+# Part C
+grocery$Type <- relevel(factor(grocery$Type), ref = "Grocery")
+model <- lm(Price ~ Product + Type, data = grocery)
+confint(model, level = 0.95)
+```
+
+```{r, echo=FALSE, results='hide', warning=FALSE}
+# Part D
+model_store <- lm(Price ~ Product + Store, data = grocery)
+store_coefs <- coef(model_store)
+
+
+store_coefs <- store_coefs[grep("^Store", names(store_coefs))]
+sort(store_coefs)
+
+
+
+```
+Compared with ordinary grocery stores (like Albertsons, HEB, or Krogers), convenience stores charge somewhere between
+0.41 and 0.92 dollars more for the same product.”
+
+<br>
+
+Part D:
+
+The two stores that seem to charge the lowest prices, when comparing the same product, are Walmart and Kroger Fresh Fare.
+The two stores that charge the highest prices are Wheatsville Food Co-Op and Whole Foods.
+
+<br>
+Part E:
+
+The regression model shows that it charges only  7 cents more than HEB for the same product (coefficient of -0.573 for Central Market vs. -0.646 for HEB). This is a very small difference, especially when compared to other stores: for example, CVS charges about $0.84 more, and Walmart charges about $0.34 less than HEB for the same product
+
+<br>
+Part F:
+
+```{r, echo=FALSE, results='hide', warning=FALSE}
+grocery <- grocery %>%
+  mutate(Income10K = Income / 10000)
+
+model_income <- lm(Price ~ Product + Income10K, data = grocery)
+#summary(model_income)
+
+standardize_parameters(model_income)
+
+```
+
+This negative sign means that as income increases. This implies that lower-income ZIP codes tend to face higher prices, on average. The confidence interval for this coefficient is [-0.07, 0.01], which includes 0 which is not statistically significant. 
+
+A one-standard deviation increase in the income of a ZIP code seems to be associated with a 0.03 standard-deviation change in the price that consumers in that ZIP code expect to pay for the same product.
+
+
+<br>
+<br>
+
+## Problem 3: redlining
+
+A.
+
+The statement that "ZIP codes with a higher percentage of minority residents tend to have more FAIR policies per 100 housing units" is true. Figure A1 shows a regression line indicating that FAIR policies per 100 housing units increase as the percentage of minority residents increases. This is supported by the positive coefficient of 0.014. The R² value of 0.52 indicates that 52% of the variation in FAIR policies can be explained by the percentage of minority residents.
+<br>
+
+B.
+
+There isn’t enough evidence to say there’s an interaction effect between minority percentage and the age of the housing stock in how they relate to the number of FAIR policies in a ZIP code. Figure A1 only shows the relationship between the percentage of minority residents and FAIR policies per 100 housing units, which is the main piece of evidence we have. To really answer this question, we’d need a linear model that includes both variables and their interaction, to see how the combination of minority percentage and housing stock age affects the number of FAIR policies. 
+<br>
+
+
+C.
+
+The statement the "relationship between minority percentage and number of FAIR policies per 100 housing units is stronger in high-fire-risk ZIP codes than in low-fire-risk ZIP codes" is true. In figure C1, the regression line for high fire risk zip when looking at the relationship relationship between minority percentage and number of FAIR policies per 100 housing units has a steeper line. The R² value of 0.59 from the interaction model indicates that 59% of the variation in FAIR policies is explained by the percentage of minority residents, fire risk level, and their interaction.
+<br>
+
+
+D.
+
+It's undecided whether income "explains away" all the association between minority percentage and FAIR policy uptake. In Model D1 under Income, with just minority percentage, the coefficient is 0.014, suggesting a positive relationship between minority percentage and the number of FAIR policies per 100 housing units. But in Model D2, once we control for income, the minority coefficient drops to 0.01. While the relationship is still positive, it's a bit weaker. Since the coefficient is still positive in both models, income doesn’t fully explain away the connection.
+<br>
+
+
+
+E.
+
+It is true that minority percentage and the number of FAIR policies are still associated at the ZIP code level, even after controlling for income, fire risk, and housing age. In Model E under Multiple Predictors, the minority percentage coefficient is 0.008, which indicates a positive relationship between minority percentage and the number of FAIR policies per 100 housing units.
+
+
+
+
+
+
